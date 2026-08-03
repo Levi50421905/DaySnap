@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import exifr from 'exifr'
+import 'server-only'
 
 export async function POST(req: Request) {
   const { userId } = await auth()
@@ -46,7 +47,14 @@ export async function POST(req: Request) {
     }
 
     // Upload foto utama ke Supabase Storage
-    const fileExt = file.name.split('.').pop() ?? 'jpg'
+    const mimeToExt: Record<string, string> = {
+      'image/jpeg': 'jpg',
+      'image/jpg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+      'image/heic': 'heic',
+    }
+    const fileExt = mimeToExt[file.type] ?? 'jpg'
     const fileName = `${userId}/${dateTaken}/${Date.now()}.${fileExt}`
 
     const { error: uploadError } = await supabase.storage
@@ -60,20 +68,28 @@ export async function POST(req: Request) {
       .getPublicUrl(fileName)
 
     // Upload thumbnail
-    let thumbnailUrl: string | null = null
-    if (thumbnail) {
-      const thumbName = `${userId}/${dateTaken}/thumb_${Date.now()}.${fileExt}`
-      const { error: thumbError } = await supabase.storage
-        .from('photos')
-        .upload(thumbName, thumbnail, { contentType: thumbnail.type })
+let thumbnailUrl: string | null = null
 
-      if (!thumbError) {
-        const { data: { publicUrl: thumbPublicUrl } } = supabase.storage
-          .from('photos')
-          .getPublicUrl(thumbName)
-        thumbnailUrl = thumbPublicUrl
-      }
-    }
+if (thumbnail) {
+  const thumbExt = mimeToExt[thumbnail.type] ?? 'jpg'
+  const thumbName = `${userId}/${dateTaken}/thumb_${Date.now()}.${thumbExt}`
+
+  const { error: thumbError } = await supabase.storage
+    .from('photos')
+    .upload(thumbName, thumbnail, {
+      contentType: thumbnail.type,
+    })
+
+  if (!thumbError) {
+    const {
+      data: { publicUrl: thumbPublicUrl },
+    } = supabase.storage
+      .from('photos')
+      .getPublicUrl(thumbName)
+
+    thumbnailUrl = thumbPublicUrl
+  }
+}
 
     // Simpan ke database
     const { data: photo, error: dbError } = await supabase

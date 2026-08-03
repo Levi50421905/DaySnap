@@ -1,11 +1,13 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 import type { AIDetectionResponse, DetectionResult } from '@/types/snap'
 import type { RarityTier } from '@/constants/rarity'
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY!,
+})
 
 const PROMPT_VERSION = '1.0'
-const MODEL_VERSION = 'gemini-1.5-flash'
+const MODEL_VERSION = 'gemini-3.5-flash'
 
 const DETECTION_PROMPT = `
 Analyze this photo and identify what is in it. Return ONLY a valid JSON object with no markdown, no backticks, no explanation.
@@ -52,17 +54,26 @@ export async function detectPhoto(
   imageBuffer: Buffer,
   mimeType: string = 'image/jpeg'
 ): Promise<AIDetectionResponse & { model_version: string; prompt_version: string }> {
-  const model = genAI.getGenerativeModel({ model: MODEL_VERSION })
-
-  const imagePart = {
-    inlineData: {
-      data: imageBuffer.toString('base64'),
-      mimeType,
-    },
-  }
-
-  const result = await model.generateContent([DETECTION_PROMPT, imagePart])
-  const text = result.response.text()
+  const result = await ai.models.generateContent({
+    model: MODEL_VERSION,
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          { text: DETECTION_PROMPT },
+          {
+            inlineData: {
+              mimeType,
+              data: imageBuffer.toString('base64'),
+            },
+          },
+        ],
+      },
+    ],
+  })
+  
+  //const text = result.text()
+  const text = result.text
 
   // Bersihkan response dari markdown kalau ada
   const cleaned = text

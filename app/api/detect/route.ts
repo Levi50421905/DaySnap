@@ -12,14 +12,12 @@ export async function POST(req: Request) {
 
   try {
     const { photoId } = await req.json()
-
     if (!photoId) {
       return NextResponse.json({ error: 'photoId wajib ada' }, { status: 400 })
     }
 
     const supabase = createClient()
 
-    // Ambil foto dari database
     const { data: photo, error: photoError } = await supabase
       .from('photos')
       .select('*')
@@ -28,53 +26,72 @@ export async function POST(req: Request) {
       .single()
 
     if (photoError || !photo) {
+      console.error('[detect] Foto tidak ditemukan:', photoError)
       return NextResponse.json({ error: 'Foto tidak ditemukan' }, { status: 404 })
     }
 
-    // Download foto dari Supabase Storage
-    const photoPath = photo.url.split('/storage/v1/object/public/photos/')[1]
-    const { data: fileData, error: fileError } = await supabase.storage
-      .from('photos')
-      .download(photoPath)
+    console.log('[detect] Memproses foto:', photo.url)
 
-    if (fileError || !fileData) {
-      return NextResponse.json({ error: 'Gagal download foto' }, { status: 500 })
+    // Fetch langsung dari public URL
+    console.log('[detect] Fetching foto dari URL:', photo.url)
+
+    const imageResponse = await fetch(photo.url)
+
+    if (!imageResponse.ok) {
+      console.error('[detect] Gagal fetch foto:', imageResponse.status)
+      return NextResponse.json(
+        { error: 'Gagal fetch foto' },
+        { status: 500 }
+      )
     }
 
-    const buffer = Buffer.from(await fileData.arrayBuffer())
+    console.log('[detect] Foto berhasil di-fetch, kirim ke Gemini...')
 
-    // Deteksi dengan Gemini
+    const buffer = Buffer.from(await imageResponse.arrayBuffer())
     const detection = await detectPhoto(buffer, 'image/jpeg')
 
-    // Simpan main snap
+    console.log('[detect] Hasil Gemini:', JSON.stringify(detection.main, null, 2))
+
     await resolveAndSaveSnap(
       userId,
       photoId,
-      { ...detection.main, model_version: detection.model_version, prompt_version: detection.prompt_version },
+      {
+        ...detection.main,
+        model_version: detection.model_version,
+        prompt_version: detection.prompt_version,
+      },
       true,
       photo.location
     )
 
-    // Simpan secondary snaps
     for (const secondary of detection.secondary) {
       await resolveAndSaveSnap(
         userId,
         photoId,
-        { ...secondary, model_version: detection.model_version, prompt_version: detection.prompt_version },
+        {
+          ...secondary,
+          model_version: detection.model_version,
+          prompt_version: detection.prompt_version,
+        },
         false,
         photo.location
       )
     }
+
+    console.log('[detect] Selesai, snaps tersimpan.')
 
     return NextResponse.json({
       success: true,
       detection: {
         main: detection.main,
         secondary: detection.secondary,
-      }
+      },
     })
   } catch (error) {
-    console.error('Detection error:', error)
-    return NextResponse.json({ error: 'Gagal mendeteksi foto' }, { status: 500 })
+    console.error('[detect] Error:', error)
+    return NextResponse.json(
+      { error: 'Gagal mendeteksi foto' },
+      { status: 500 }
+    )
   }
 }
