@@ -71,7 +71,7 @@ export async function detectPhoto(
       },
     ],
   })
-  
+  console.dir(result, { depth: null })
   //const text = result.text()
   const text = result.text
 
