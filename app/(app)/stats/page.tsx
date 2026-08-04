@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { RARITY_CONFIG } from '@/constants/rarity'
 import type { RarityTier } from '@/constants/rarity'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 type Stats = {
   active_days: number
@@ -46,11 +47,20 @@ export default function StatsPage() {
 
   if (loading) {
     return (
-      <div className="p-4 md:p-6">
+      <div className="p-4 md:p-6 max-w-lg mx-auto page-enter">
         <h1 className="text-xl font-bold mb-6">Stats</h1>
-        <div className="h-48 flex items-center justify-center text-[#6B6A66] text-sm">
-          Memuat...
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-[#141416] border border-white/8 rounded-xl p-4 space-y-2">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-3 w-28" />
+            </div>
+          ))}
         </div>
+        <Skeleton className="h-24 w-full rounded-xl mb-3" />
+        <Skeleton className="h-20 w-full rounded-xl mb-3" />
+        <Skeleton className="h-36 w-full rounded-xl" />
       </div>
     )
   }

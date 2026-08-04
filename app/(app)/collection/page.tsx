@@ -6,6 +6,7 @@ import { SnapDetail } from '@/components/snap/SnapDetail'
 import { RARITY_CONFIG } from '@/constants/rarity'
 import type { RarityTier } from '@/constants/rarity'
 import { cn } from '@/lib/utils/cn'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 type Snap = any
 
@@ -81,20 +82,19 @@ export default function CollectionPage() {
 
       {/* Content */}
       {loading ? (
-        <div className="h-64 flex items-center justify-center text-[#6B6A66] text-sm">
-          Memuat...
+  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+    {Array.from({ length: 6 }).map((_, i) => (
+      <div key={i} className="bg-[#141416] border border-white/8 rounded-xl overflow-hidden">
+        <Skeleton className="w-full" style={{ aspectRatio: '1' }} />
+        <div className="p-3 space-y-2">
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-3 w-1/2" />
         </div>
-      ) : snaps.length === 0 ? (
-        <div className="h-64 flex flex-col items-center justify-center gap-3">
-          <span className="text-4xl">✦</span>
-          <p className="text-[#6B6A66] text-sm text-center">
-            {filter === 'all'
-              ? 'Belum ada snap. Upload foto untuk mulai koleksi.'
-              : `Belum ada snap dengan rarity ${filter}.`
-            }
-          </p>
-        </div>
-      ) : (
+      </div>
+    ))}
+  </div>
+) : (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {snaps.map((snap) => (
             <SnapCard
