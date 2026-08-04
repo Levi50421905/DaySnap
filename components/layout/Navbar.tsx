@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { UserButton } from '@clerk/nextjs'
 import { cn } from '@/lib/utils/cn'
+import { Settings } from 'lucide-react'
 
 const NAV_ITEMS = [
   { href: '/daily',      label: 'Daily',      icon: '📅' },
@@ -11,6 +12,7 @@ const NAV_ITEMS = [
   { href: '/collection', label: 'Collection', icon: '✦'  },
   { href: '/memories',   label: 'Memories',   icon: '☀'  },
   { href: '/stats',      label: 'Stats',      icon: '📊' },
+  { href: '/settings',   label: 'Settings',   icon: '⚙️' },
 ]
 
 export function Navbar() {
@@ -41,7 +43,18 @@ export function Navbar() {
           </Link>
         ))}
       </nav>
-
+      <Link
+  href="/settings"
+  className={cn(
+    'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors mb-1',
+    pathname === '/settings'
+      ? 'bg-white/8 text-[#E8E6E1]'
+      : 'text-[#6B6A66] hover:text-[#E8E6E1] hover:bg-white/5'
+  )}
+>
+  <Settings size={14} />
+  <span>Settings</span>
+</Link>
       <div className="px-2">
         <UserButton afterSignOutUrl="/login" />
       </div>
