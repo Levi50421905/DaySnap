@@ -76,6 +76,38 @@ export async function POST(req: Request) {
   return NextResponse.json({ memory: data })
 }
 
+export async function PUT(req: Request) {
+  const { userId } = await auth()
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { id, title, reason } = await req.json()
+
+  if (!id || !title) {
+    return NextResponse.json({ error: 'id dan title wajib ada' }, { status: 400 })
+  }
+
+  const supabase = createClient()
+
+  const { data, error } = await supabase
+    .from('memories')
+    .update({
+      title: title.trim(),
+      reason: reason?.trim() || null,
+    })
+    .eq('id', id)
+    .eq('user_id', userId)
+    .select()
+    .single()
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ memory: data })
+}
+
 export async function DELETE(req: Request) {
   const { userId } = await auth()
   if (!userId) {

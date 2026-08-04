@@ -29,7 +29,7 @@ const DEFAULT_SETTINGS: Settings = {
   allow_pin_after_day: false,
   timezone: 'Asia/Jakarta',
   auto_ai_detection: true,
-  show_secondary_snap: true,
+  show_secondary_snap: false,
   allow_unknown_discovery: true,
   theme: 'dark',
   accent_color: 'teal',
@@ -100,7 +100,26 @@ export default function SettingsPage() {
     if (userId) {
       await supabase.from('snaps').delete().eq('user_id', userId)
       alert('Collection berhasil direset.')
+      fetchStorage()
     }
+  }
+
+  async function handleDeleteAccount() {
+    const confirmed = confirm(
+      'Hapus akun dan semua data (foto, snaps, memories)? Tindakan ini tidak bisa dibatalkan.',
+    )
+    if (!confirmed) return
+
+    const typed = prompt('Ketik HAPUS untuk konfirmasi:')
+    if (typed !== 'HAPUS') return
+
+    const res = await fetch('/api/account', { method: 'DELETE' })
+    if (!res.ok) {
+      alert('Gagal menghapus akun. Coba lagi.')
+      return
+    }
+
+    await signOut({ redirectUrl: '/login' })
   }
 
   if (loading) {
@@ -307,6 +326,12 @@ export default function SettingsPage() {
           label="Reset Collection"
           sublabel="Hapus semua snap tanpa hapus foto"
           onClick={handleResetCollection}
+        />
+        <SettingsItem
+          label="Hapus Akun & Data"
+          sublabel="Hapus semua foto, snaps, memories, dan akun"
+          danger
+          onClick={handleDeleteAccount}
         />
       </SettingsGroup>
 

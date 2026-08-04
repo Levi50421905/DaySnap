@@ -19,6 +19,7 @@ export async function GET(req: Request) {
     .select('*')
     .eq('user_id', userId)
     .order('date_taken', { ascending: false })
+    .order('created_at', { ascending: true })
 
   if (month) {
     query = query

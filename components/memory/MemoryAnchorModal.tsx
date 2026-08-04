@@ -1,19 +1,39 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { X, Anchor } from 'lucide-react'
+
+interface MemoryData {
+  id: string
+  title: string
+  reason: string | null
+}
 
 interface MemoryAnchorModalProps {
   photoId: string
+  memory?: MemoryData | null
   onClose: () => void
   onSuccess: () => void
 }
 
-export function MemoryAnchorModal({ photoId, onClose, onSuccess }: MemoryAnchorModalProps) {
-  const [title, setTitle] = useState('')
-  const [reason, setReason] = useState('')
+export function MemoryAnchorModal({
+  photoId,
+  memory,
+  onClose,
+  onSuccess,
+}: MemoryAnchorModalProps) {
+  const isEdit = !!memory
+  const [title, setTitle] = useState(memory?.title ?? '')
+  const [reason, setReason] = useState(memory?.reason ?? '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (memory) {
+      setTitle(memory.title)
+      setReason(memory.reason ?? '')
+    }
+  }, [memory])
 
   async function handleSubmit() {
     if (!title.trim()) {
@@ -26,13 +46,13 @@ export function MemoryAnchorModal({ photoId, onClose, onSuccess }: MemoryAnchorM
 
     try {
       const res = await fetch('/api/memories', {
-        method: 'POST',
+        method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          photo_id: photoId,
-          title: title.trim(),
-          reason: reason.trim() || null,
-        }),
+        body: JSON.stringify(
+          isEdit
+            ? { id: memory!.id, title: title.trim(), reason: reason.trim() || null }
+            : { photo_id: photoId, title: title.trim(), reason: reason.trim() || null },
+        ),
       })
 
       const data = await res.json()
@@ -59,12 +79,11 @@ export function MemoryAnchorModal({ photoId, onClose, onSuccess }: MemoryAnchorM
         className="w-full max-w-sm bg-[#1C1C1F] border border-white/10 rounded-2xl p-5"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Anchor size={14} className="text-[#4ECDC4]" />
             <span className="text-sm font-semibold text-[#E8E6E1]">
-              Memory Anchor
+              {isEdit ? 'Edit Memory Anchor' : 'Memory Anchor'}
             </span>
           </div>
           <button
@@ -75,7 +94,6 @@ export function MemoryAnchorModal({ photoId, onClose, onSuccess }: MemoryAnchorM
           </button>
         </div>
 
-        {/* Form */}
         <div className="space-y-3">
           <div>
             <label className="text-[10px] font-mono uppercase tracking-widest text-[#6B6A66] block mb-1.5">
@@ -116,7 +134,7 @@ export function MemoryAnchorModal({ photoId, onClose, onSuccess }: MemoryAnchorM
             disabled={loading || !title.trim()}
             className="w-full bg-[#4ECDC4] text-[#0E0E10] font-semibold py-2.5 rounded-lg text-sm hover:bg-[#4ECDC4]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {loading ? 'Menyimpan...' : 'Simpan Memory'}
+            {loading ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Simpan Memory'}
           </button>
         </div>
       </div>

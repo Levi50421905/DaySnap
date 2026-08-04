@@ -90,7 +90,7 @@ export default function StatsPage() {
         <StatCard
           label="Total Snaps"
           value={stats.total_snaps}
-          sub="objek unik ditemukan"
+          sub="foto dianalisis di Collection"
         />
         <StatCard
           label="Memories"
@@ -136,6 +136,9 @@ export default function StatsPage() {
       <div className="bg-[#141416] border border-white/8 rounded-xl p-4 mb-3">
         <p className="text-[10px] font-mono uppercase tracking-widest text-[#6B6A66] mb-3">
           Koleksi per Rarity
+        </p>
+        <p className="text-xs text-[#4A4A4E] mb-3">
+          Sama dengan jumlah di halaman Collection
         </p>
         <div className="space-y-2">
           {(['legendary', 'epic', 'rare', 'uncommon', 'common'] as RarityTier[]).map(tier => {

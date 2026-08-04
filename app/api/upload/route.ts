@@ -1,5 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
+import { getUserSettings } from '@/lib/settings/user-settings'
 import { NextResponse } from 'next/server'
 import exifr from 'exifr'
 import 'server-only'
@@ -24,7 +25,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'File dan tanggal wajib ada' }, { status: 400 })
     }
 
-    // Validasi EXIF ulang di server-side
     const exifData = await exifr.parse(
       Buffer.from(await file.arrayBuffer()),
       { pick: ['DateTimeOriginal', 'CreateDate', 'GPSLatitude', 'GPSLongitude'] }
@@ -46,7 +46,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // Upload foto utama ke Supabase Storage
     const mimeToExt: Record<string, string> = {
       'image/jpeg': 'jpg',
       'image/jpg': 'jpg',
@@ -67,31 +66,24 @@ export async function POST(req: Request) {
       .from('photos')
       .getPublicUrl(fileName)
 
-    // Upload thumbnail
-let thumbnailUrl: string | null = null
+    let thumbnailUrl: string | null = null
 
-if (thumbnail) {
-  const thumbExt = mimeToExt[thumbnail.type] ?? 'jpg'
-  const thumbName = `${userId}/${dateTaken}/thumb_${Date.now()}.${thumbExt}`
+    if (thumbnail) {
+      const thumbExt = mimeToExt[thumbnail.type] ?? 'jpg'
+      const thumbName = `${userId}/${dateTaken}/thumb_${Date.now()}.${thumbExt}`
 
-  const { error: thumbError } = await supabase.storage
-    .from('photos')
-    .upload(thumbName, thumbnail, {
-      contentType: thumbnail.type,
-    })
+      const { error: thumbError } = await supabase.storage
+        .from('photos')
+        .upload(thumbName, thumbnail, { contentType: thumbnail.type })
 
-  if (!thumbError) {
-    const {
-      data: { publicUrl: thumbPublicUrl },
-    } = supabase.storage
-      .from('photos')
-      .getPublicUrl(thumbName)
+      if (!thumbError) {
+        const { data: { publicUrl: thumbPublicUrl } } = supabase.storage
+          .from('photos')
+          .getPublicUrl(thumbName)
+        thumbnailUrl = thumbPublicUrl
+      }
+    }
 
-    thumbnailUrl = thumbPublicUrl
-  }
-}
-
-    // Simpan ke database
     const { data: photo, error: dbError } = await supabase
       .from('photos')
       .insert({
@@ -107,18 +99,21 @@ if (thumbnail) {
       .single()
 
     if (dbError) throw dbError
-// Trigger AI detection di background (tidak perlu tunggu)
-fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/detect`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    // Forward cookie untuk auth
-    cookie: req.headers.get('cookie') ?? '',
-  },
-  body: JSON.stringify({ photoId: photo.id }),
-}).catch(console.error) // fire and forget
 
-return NextResponse.json({ success: true, photo })
+    const settings = await getUserSettings(userId)
+
+    if (settings.auto_ai_detection) {
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/detect`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          cookie: req.headers.get('cookie') ?? '',
+        },
+        body: JSON.stringify({ photoId: photo.id }),
+      }).catch(console.error)
+    }
+
+    return NextResponse.json({ success: true, photo })
   } catch (error) {
     console.error('Upload error:', error)
     return NextResponse.json({ error: 'Gagal upload foto' }, { status: 500 })

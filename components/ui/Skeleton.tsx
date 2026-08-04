@@ -1,5 +1,12 @@
 import { cn } from '@/lib/utils/cn'
+import type { CSSProperties } from 'react'
 
-export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn('skeleton', className)} />
+export function Skeleton({
+  className,
+  style,
+}: {
+  className?: string
+  style?: CSSProperties
+}) {
+  return <div className={cn('skeleton', className)} style={style} />
 }

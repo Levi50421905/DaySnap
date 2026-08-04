@@ -14,15 +14,12 @@ interface CalendarGridProps {
 export function CalendarGrid({ month, photos, onCellClick }: CalendarGridProps) {
   const today = new Date()
 
-  // Buat map dari date_taken ke photo (yang pinned diprioritaskan)
+  // Hanya foto yang dipilih (pinned) muncul di kalender
   const photoMap = new Map<number, Photo>()
   for (const photo of photos) {
+    if (!photo.is_pinned) continue
     const day = new Date(photo.date_taken + 'T00:00:00').getDate()
-    const existing = photoMap.get(day)
-    // kalau sudah ada tapi yang baru is_pinned, ganti
-    if (!existing || photo.is_pinned) {
-      photoMap.set(day, photo)
-    }
+    photoMap.set(day, photo)
   }
 
   // Hitung offset hari pertama bulan

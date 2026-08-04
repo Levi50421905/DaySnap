@@ -1,5 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
+import { groupSnapsByPhoto } from '@/lib/snaps/collection'
 import { NextResponse } from 'next/server'
 
 export async function GET(req: Request) {
@@ -40,16 +41,11 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  // Group by canonical_key — ambil yang terbaru per key
-  const grouped = new Map<string, typeof data[0]>()
-  for (const snap of data ?? []) {
-    if (!grouped.has(snap.canonical_key)) {
-      grouped.set(snap.canonical_key, snap)
-    }
-  }
+  // Group by photo_id — satu entry per foto yang dianalisis
+  const grouped = groupSnapsByPhoto(data ?? [])
 
   return NextResponse.json({
-    snaps: Array.from(grouped.values()),
-    total: grouped.size,
+    snaps: grouped,
+    total: grouped.length,
   })
 }

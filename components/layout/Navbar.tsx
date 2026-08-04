@@ -45,7 +45,7 @@ export function Navbar() {
       </nav>
 
       <div className="px-2">
-        <UserButton afterSignOutUrl="/login" />
+        <UserButton />
       </div>
     </aside>
   )

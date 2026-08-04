@@ -2,6 +2,8 @@ import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 import { detectPhoto } from '@/lib/ai/detect'
 import { resolveAndSaveSnap } from '@/lib/ai/canonical'
+import { isLowConfidenceDiscovery } from '@/lib/ai/rarity'
+import { getUserSettings } from '@/lib/settings/user-settings'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
@@ -10,6 +12,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const uid = userId
+
   try {
     const { photoId } = await req.json()
     if (!photoId) {
@@ -17,43 +21,43 @@ export async function POST(req: Request) {
     }
 
     const supabase = createClient()
+    const settings = await getUserSettings(uid)
 
     const { data: photo, error: photoError } = await supabase
       .from('photos')
       .select('*')
       .eq('id', photoId)
-      .eq('user_id', userId)
+      .eq('user_id', uid)
       .single()
 
     if (photoError || !photo) {
-      console.error('[detect] Foto tidak ditemukan:', photoError)
       return NextResponse.json({ error: 'Foto tidak ditemukan' }, { status: 404 })
     }
 
-    console.log('[detect] Memproses foto:', photo.url)
-
-    // Fetch langsung dari public URL
-    console.log('[detect] Fetching foto dari URL:', photo.url)
-
     const imageResponse = await fetch(photo.url)
-
     if (!imageResponse.ok) {
-      console.error('[detect] Gagal fetch foto:', imageResponse.status)
-      return NextResponse.json(
-        { error: 'Gagal fetch foto' },
-        { status: 500 }
-      )
+      return NextResponse.json({ error: 'Gagal fetch foto' }, { status: 500 })
     }
-
-    console.log('[detect] Foto berhasil di-fetch, kirim ke Gemini...')
 
     const buffer = Buffer.from(await imageResponse.arrayBuffer())
     const detection = await detectPhoto(buffer, 'image/jpeg')
 
-    console.log('[detect] Hasil Gemini:', JSON.stringify(detection.main, null, 2))
+    if (!settings.allow_unknown_discovery && isLowConfidenceDiscovery(detection.main.confidence)) {
+      return NextResponse.json(
+        { error: 'AI tidak cukup yakin — identifikasi dilewati' },
+        { status: 422 },
+      )
+    }
 
-    await resolveAndSaveSnap(
-      userId,
+    // Satu foto = satu entry di Collection — hapus snap lama foto ini dulu
+    await supabase
+      .from('snaps')
+      .delete()
+      .eq('user_id', uid)
+      .eq('photo_id', photoId)
+
+    const snapId = await resolveAndSaveSnap(
+      uid,
       photoId,
       {
         ...detection.main,
@@ -61,37 +65,41 @@ export async function POST(req: Request) {
         prompt_version: detection.prompt_version,
       },
       true,
-      photo.location
+      photo.location,
     )
 
-    for (const secondary of detection.secondary) {
-      await resolveAndSaveSnap(
-        userId,
-        photoId,
-        {
-          ...secondary,
-          model_version: detection.model_version,
-          prompt_version: detection.prompt_version,
-        },
-        false,
-        photo.location
-      )
+    // Secondary snap opsional — tidak masuk Collection (main_only filter)
+    if (settings.show_secondary_snap) {
+      for (const secondary of detection.secondary) {
+        if (!settings.allow_unknown_discovery && isLowConfidenceDiscovery(secondary.confidence)) {
+          continue
+        }
+        await resolveAndSaveSnap(
+          uid,
+          photoId,
+          {
+            ...secondary,
+            model_version: detection.model_version,
+            prompt_version: detection.prompt_version,
+          },
+          false,
+          photo.location,
+        )
+      }
     }
-
-    console.log('[detect] Selesai, snaps tersimpan.')
 
     return NextResponse.json({
       success: true,
+      snap_id: snapId,
       detection: {
         main: detection.main,
-        secondary: detection.secondary,
       },
     })
   } catch (error) {
     console.error('[detect] Error:', error)
     return NextResponse.json(
       { error: 'Gagal mendeteksi foto' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

@@ -81,7 +81,12 @@ export function SnapDetail({ snap, onClose }: SnapDetailProps) {
 
           {/* Nama & rarity */}
           <div className="mb-4">
-            <RarityBadge rarity={snap.current_rarity as RarityTier} />
+            <div className="flex items-center gap-2 flex-wrap">
+              <RarityBadge rarity={snap.current_rarity as RarityTier} />
+              <span className="text-[10px] font-mono uppercase tracking-wider text-[#6B6A66]">
+                Rarity Kamu
+              </span>
+            </div>
             <h2 className="text-xl font-bold text-[#E8E6E1] mt-2">
               {snap.common_name_en}
             </h2>
@@ -96,9 +101,9 @@ export function SnapDetail({ snap, onClose }: SnapDetailProps) {
           {/* Detail rows */}
           <div className="space-y-0 border border-white/8 rounded-lg overflow-hidden mb-4">
             {[
-              ['Global Rarity', snap.global_rarity],
-              ['Accessibility', snap.accessibility ?? '—'],
-              ['Context', snap.discovery_context ?? '—'],
+              ['Rarity Objek', snap.global_rarity],
+              ['Aksesibilitas', snap.accessibility?.replace(/_/g, ' ') ?? '—'],
+              ['Konteks', snap.discovery_context ?? '—'],
               ['Location', locationStr ?? '—'],
               ['Encounters', `${snap.encounter_count}×`],
             ].map(([label, value]) => (
